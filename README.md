@@ -10,7 +10,7 @@ Show progress notifications on OHMDs during social interactions (a clone of priv
 
 ## Contents
 - This repo contains the notification triggering implementation using Python ([ProgressBarPython](ProgressBarPython)) and UI implementation using Unity([ProgressBarUnity](ProgressBarUnity))
-- Please see the branch [study1_simulation_setting](https://github.com/NUS-HCILab/CircularProgressBar/tree/study1_simulation_setting) for `study 1 (simulation setting)` impementation and branch [study2_conversation_setting]() for `study 2 (conversation setting)` implementation
+- Please see the branch [study1_simulation_setting](https://github.com/NUS-HCILab/CircularProgressBar/tree/study1_simulation_setting) for `study 1 (simulation setting)` impementation and branch [study2_conversation_setting](https://github.com/NUS-HCILab/CircularProgressBar/tree/study2_conversation_setting) for `study 2 (conversation setting)` implementation
 - See the individual folders for requirements and installations
 
 ## Contact person
