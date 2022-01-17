@@ -1,5 +1,18 @@
 # Add specific files/folders related to your project
 
+ProgressBarPython/data/
+ProgressBarPython/__pycache__/
+ProgressBarPython/_sequence*
+
+
+ProgressBarUnity/[Ll]ibrary/
+ProgressBarUnity/[Tt]emp/
+ProgressBarUnity/[Oo]bj/
+ProgressBarUnity/[Bb]uild/
+ProgressBarUnity/[Bb]uilds/
+ProgressBarUnity/[Ll]ogs/
+ProgressBarUnity/[Uu]ser[Ss]ettings/
+ProgressBarUnity/[Aa]ssets/**/*.meta
 
 
 
