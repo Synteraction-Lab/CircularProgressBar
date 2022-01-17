@@ -14,7 +14,7 @@ Show progress notifications on OHMDs (HoloLens2) during social interactions. Thi
 - make sure python3 is installed
 - install [flask ](https://pypi.org/project/Flask/)
 - install [pynput](https://pypi.org/project/pynput/)
-- - install [pygame](https://www.pygame.org/wiki/GettingStarted)
+- install [pygame](https://www.pygame.org/wiki/GettingStarted)
 
 ### HoloLens app
 - install the corresponding mixed reality app in [ProgressBarUnity](https://github.com/NUS-HCILab/ProgressBarUnity)
