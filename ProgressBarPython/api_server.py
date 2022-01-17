@@ -49,11 +49,11 @@ def stop_server():
 def update_server_data(data):
     global data_queue
     data_queue.put(data)
-    # print_data('[Update]', data)
+    print_data('[Update]', data)
 
 
 def print_data(message, data):
-    print(f'{message} data: p = {data.get("progress")}, shown = {get_progress_display_value(data): .2f}')
+    print(f'{message} data: p = {data.get("progress")}, shown = {get_progress_display_value(data): .2f}, {data.get("progressText")}')
 
 
 def get_progress_display_value(progress_object):
@@ -83,3 +83,7 @@ def get_server_request_data():
 
 def get_server_request_time():
     return last_request_time
+
+
+def get_pending_request_count():
+    return data_queue.qsize()

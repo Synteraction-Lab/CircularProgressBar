@@ -26,6 +26,7 @@ public class NetworkPollController : MonoBehaviour
     {
         elapsedTimeFromLastPoll = 0;
         // updateProgressFromNetwork();
+        Debug.Log("Start NetworkPollController");
     }
 
     // Update is called once per frame
@@ -89,6 +90,7 @@ public class NetworkPollController : MonoBehaviour
         // Format: <EYE_TRACKING_START, EYE_TRACKING_STOP>|<participant>|<session>
         // Format: <CHANGE_SIZE>|<linear_size>|<circular_size>
         // Foramt: <CHANGE_DEPTH>|<depth>
+        // Foramt: <CHANGE_CENTER>|<enter_x>|<center_y>
         // Format: <DISPLAY_DURATION>|<duration_millis>
 
         string[] configs = configData.Split('|');
@@ -112,6 +114,10 @@ public class NetworkPollController : MonoBehaviour
             else if (string.Equals("CHANGE_SIZE", cmd) && isValidFloat(configs[1]) && isValidFloat(configs[2]))
             {
                 progressLoader.UpdateSize(float.Parse(configs[1]), float.Parse(configs[2]));
+            }
+            else if (string.Equals("CHANGE_CENTER", cmd) && isValidFloat(configs[1]) && isValidFloat(configs[2]))
+            {
+                progressLoader.UpdateCenter(float.Parse(configs[1]), float.Parse(configs[2]));
             }
         }
         if (configs.Length >= 2)
@@ -142,7 +148,6 @@ public class NetworkPollController : MonoBehaviour
         float f = 0;
         return float.TryParse(value, out f);
     }
-
 }
 
 [Serializable]

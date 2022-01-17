@@ -12,13 +12,19 @@ from queue import Queue
 
 import progress_data
 import participant_config
-import pygame_display
 
-PROGRESS_DISPLAY_DURATION_SECONDS = 3
-TRIAL_IMAGE_DISPLAY_DURATION_SECONDS = 7
-TRIAL_CROSS_DISPLAY_DURATION_SECONDS = 1
-TRIAL_TARGET_START_SECONDS_AFTER_IMAGE = 2
-TARGET_DISPLAY_DURATION_MILLIS = 1000
+PROGRESS_DISPLAY_START_DELAY_SECONDS = 1 * 15  # 60
+PROGRESS_DISPLAY_START_WAIT_RANDOM_SECONDS = 20
+TRAINING_START_DELAY_SHIFT = -20
+
+PROGRESS_MAXIMUM_WAIT_IN_100_PERCENT_SECONDS = 45
+
+TARGETS_DISPLAY_DURATION_SECONDS = 3
+PROGRESS_DISPLAY_DURATION_SECONDS = 3  # 10
+
+CONTINUOUS_PROGRESS_DISPLAY_DURATION_SECONDS = progress_data.PROGRESS_DISPLAY_UPDATE_SECONDS  # 3
+INTERMITTENT_PROGRESS_DISPLAY_DURATION_SECONDS = PROGRESS_DISPLAY_DURATION_SECONDS
+TRAINING_PROGRESS_DISPLAY_DURATION_SECONDS = 3
 
 flag_is_running = False
 
@@ -33,7 +39,7 @@ def keep_key_info(key, key_time):
     last_key_press_time = key_time
 
 
-DEBOUNCE_SECONDS = 0.4  # 400 ms
+DEBOUNCE_SECONDS = 0.2  # 200 ms
 
 
 def is_key_already_pressed(key, key_time):
@@ -42,11 +48,8 @@ def is_key_already_pressed(key, key_time):
     return False
 
 
-flag_start_trial = False
-
-
 def on_press(key):
-    global flag_is_running, flag_start_trial
+    global flag_is_running
     current_time = time.time()
 
     # print("Key: ", key)
@@ -60,10 +63,13 @@ def on_press(key):
         print('You have already pressed: ', key)
         return True
 
-    if key == keyboard.Key.right:
+    if key == keyboard.Key.page_down or key == keyboard.Key.down:
         keep_key_info(key, current_time)
-        flag_start_trial = True
-        # print('start trial: ', flag_start_trial)
+        log_events('R', current_time)
+
+    if key == keyboard.Key.page_up or key == keyboard.Key.up:
+        keep_key_info(key, current_time)
+        log_events('O', current_time)
 
 
 def save_log_file(participant, session):
@@ -125,6 +131,26 @@ def get_display_value(progress_object):
     return progress_data.get_progress_display_value(progress_object)
 
 
+def get_next_update_gap(progress_type, is_training, progress_obj):
+    is_continuous = progress_data.is_continuous(progress_type)
+
+    if is_continuous:
+        gap = CONTINUOUS_PROGRESS_DISPLAY_DURATION_SECONDS
+    else:
+        # intermittent
+        if get_display_value(progress_obj) != 0:
+            gap = INTERMITTENT_PROGRESS_DISPLAY_DURATION_SECONDS
+        else:
+            gap = CONTINUOUS_PROGRESS_DISPLAY_DURATION_SECONDS
+
+    if is_training:
+        gap = TRAINING_PROGRESS_DISPLAY_DURATION_SECONDS
+
+    # print('gap: ', gap, ', progress obj: ', progress_obj)
+
+    return gap
+
+
 def start_progress_bar(participant, session):
     global flag_is_running
 
@@ -134,54 +160,83 @@ def start_progress_bar(participant, session):
 
     flag_is_running = True
 
-    # start keyboard listening
-    start_keyboard_listening()
-    # start api server
-    start_server_threaded()
-    # start display
-    pygame_display.start()
-
     # participant session
     progress_type = participant_config.get_type(participant, session)
+    is_continuous = progress_data.is_continuous(progress_type)
     is_training = utilities.get_int(session) < 0
     is_learning = progress_data.is_learning(progress_type)
 
-    if is_learning:
-        start_progress_bar_learning(participant, session, progress_type)
-    else:
-        start_progress_bar_testing(participant, session, progress_type, is_training)
-
-    flag_is_running = False
-
-    # stop display
-    pygame_display.stop()
-    # stop api server
-    stop_server_threaded()
-    # stop keyboard listening
-    stop_keyboard_listening()
-
-
-def start_progress_bar_learning(participant, session, progress_type):
-    progress_point_list = progress_data.get_progress_learning_data(progress_type)
+    targets_string, noises_string, progress_point_list = progress_data.get_progress_data(
+        progress_type,
+        is_training)
     max_update_count = len(progress_point_list)
+
     print(
         f'Start progress session: {participant}: {session}: {progress_type}: count = {max_update_count}')
 
     reset_log()
+    log_events('TARGETS', time.time(), f'"{targets_string}"')
+    log_events('NOISES', time.time(), f'"{noises_string}"')
 
-    # display progress type
-    start_progress_data = progress_data.get_start_progress_data(progress_type)
+    # display progress type and targets
+    start_progress_data = progress_data.get_start_progress_data(progress_type, '')
     progress_data.add_eye_tracking_start(start_progress_data, participant, session)
     api_server.update_server_data(start_progress_data)
-
-    current_time = time.time()
-    log_events('START', current_time)
-
+    log_events('START', time.time(), progress_type)
     # wait to update the display
+    wait_progress_update(TARGETS_DISPLAY_DURATION_SECONDS / PROGRESS_DISPLAY_DURATION_SECONDS)
+
+    # # calibration
+    # api_server.update_server_data(progress_data.get_progress_data_info_point("Calibration"))
+    # wait_progress_update()
+    #
+    # calibration_data_list = progress_data.get_progress_data_calibration()
+    # update_count = 0
+    # max_update_count = len(calibration_data_list)
+    # next_update_time = time.time()
+    #
+    # print('\nCalibration START')
+    # current_time = time.time()
+    # log_events('CALIBRATION_START', current_time)
+    # while flag_is_running and update_count < max_update_count:
+    #     current_time = time.time()
+    #
+    #     if current_time > next_update_time:
+    #         new_data = calibration_data_list[update_count]
+    #         api_server.update_server_data(new_data)
+    #
+    #         next_update_time = current_time + PROGRESS_DISPLAY_DURATION_SECONDS
+    #         update_count += 1
+    #
+    #     utilities.sleep_seconds(0.1)
+    #     log_server_requests()
+    #
+    # log_events('CALIBRATION_END', current_time)
+    # wait_progress_update()
+    # print('Calibration STOP\n')
+
+    # start conversation
+    print('\nSTART conversation')
+    start_conversation_data = progress_data.get_progress_data_info_point('Start')
+    api_server.update_server_data(start_conversation_data)
     wait_progress_update()
 
+    api_server.update_server_data(progress_data.get_empty_data())
+    current_time = time.time()
+    conversation_start_time = current_time
+    log_events('CONVERSATION_START', current_time)
+
+    next_update_time = current_time + PROGRESS_DISPLAY_START_DELAY_SECONDS + randint(0,
+                                                                                     PROGRESS_DISPLAY_START_WAIT_RANDOM_SECONDS)
+
+    if is_training:
+        next_update_time += TRAINING_START_DELAY_SHIFT
+    if is_learning:
+        next_update_time = 0
+
     update_count = 0
-    next_update_time = current_time
+    max_update_count = len(progress_point_list)
+    first_time_progress_update = True
 
     while flag_is_running and update_count < max_update_count:
         current_time = time.time()
@@ -189,27 +244,55 @@ def start_progress_bar_learning(participant, session, progress_type):
         if current_time > next_update_time:
             new_data = progress_point_list[update_count]
             api_server.update_server_data(new_data)
+            if first_time_progress_update:
+                first_time_progress_update = False
+                log_events('TRIAL_START', current_time)
 
-            next_update_time = current_time + PROGRESS_DISPLAY_DURATION_SECONDS
-            update_count += 1
+            next_update_time = current_time + get_next_update_gap(progress_type, is_training,
+                                                                  new_data)
 
-        utilities.sleep_seconds(0.1)
+            if is_continuous:
+                update_count += 1
+            else:
+                update_count += 1
+                # # if current value is NOT 0 and next 2 values are 0, skip 1 value
+                # if get_display_value(
+                #         new_data) != 0 and update_count < max_update_count and get_display_value(
+                #     progress_point_list[
+                #         update_count]) == 0 and update_count + 1 < max_update_count and get_display_value(
+                #     progress_point_list[update_count + 1]) == 0:
+                #     update_count += 1  # is this correct?
+
+        # utilities.sleep_seconds(0.2)
         log_server_requests()
 
+    # wait before clearing data
+    pending_requests_count = api_server.get_pending_request_count()
+    print('Pending request count: ', pending_requests_count)
+    wait_progress_update(pending_requests_count)
+    log_events('TRIAL_END', time.time())
+
+    # keep the 100% for PROGRESS_MAXIMUM_WAIT_IN_100_PERCENT_SECONDS
+    print('\nWait in 100%: Press Esc to stop')
+    wait_progress_update(
+        PROGRESS_MAXIMUM_WAIT_IN_100_PERCENT_SECONDS / PROGRESS_DISPLAY_DURATION_SECONDS)
+
     # wait before stopping
-    wait_progress_update()
+    log_events('CONVERSATION_STOP', time.time())
 
     # send stop data
-    print('Stopping progress')
+    print('\nSTOP conversation', progress_type)
     stop_progress_data = progress_data.get_stop_progress_data()
     progress_data.add_eye_tracking_stop(stop_progress_data, participant, session)
     api_server.update_server_data(stop_progress_data)
-    wait_progress_update()
 
     log_events('STOP', time.time())
     save_log_file(participant, session)
 
+    api_server.update_server_data(progress_data.get_empty_data())
+
     utilities.beep(5)
+    # api_server.stop_server()
 
 
 def wait_progress_update(progress_count=1):
@@ -219,149 +302,6 @@ def wait_progress_update(progress_count=1):
         log_server_requests()
 
 
-def get_target_string(progress_data_list):
-    targets = [get_display_value(progress_obj) for progress_obj in progress_data_list]
-    string_targets = [str(i) for i in targets]
-    return ", ".join(string_targets)
-
-
-def start_progress_bar_testing(participant, session, progress_type, is_training):
-    global flag_start_trial
-
-    calibration_data_list = progress_data.get_progress_data_calibration()
-    trial_data_list = progress_data.get_progress_testing_data(progress_type, is_training)
-    trial_count = len(trial_data_list)
-
-    print(
-        f'Start progress session: {participant}: {session}: {progress_type}: count = {trial_count}')
-
-    reset_log()
-    log_events('TARGETS', time.time(), f'"{get_target_string(trial_data_list)}"')
-
-    # display progress type
-    start_progress_data = progress_data.get_start_progress_data(progress_type)
-    progress_data.add_eye_tracking_start(start_progress_data, participant, session)
-    api_server.update_server_data(start_progress_data)
-
-    current_time = time.time()
-    log_events('START', current_time, progress_type)
-    wait_progress_update()
-
-    api_server.update_server_data(progress_data.get_progress_data_info_point("Calibration"))
-    pygame_display.show_text('Calibration')
-    # wait to update the display
-    wait_progress_update()
-    pygame_display.reset()
-
-    update_count = 0
-    max_update_count = len(calibration_data_list)
-    next_update_time = current_time
-
-    # calibration data
-    print('\nCalibration START')
-    current_time = time.time()
-    log_events('CALIBRATION_START', current_time)
-    while flag_is_running and update_count < max_update_count:
-        current_time = time.time()
-
-        if current_time > next_update_time:
-            new_data = calibration_data_list[update_count]
-            api_server.update_server_data(new_data)
-
-            next_update_time = current_time + PROGRESS_DISPLAY_DURATION_SECONDS
-            update_count += 1
-
-        utilities.sleep_seconds(0.1)
-        log_server_requests()
-
-    log_events('CALIBRATION_END', current_time)
-    wait_progress_update()
-    print('Calibration STOP\n')
-
-    # inform the progress type and start
-    api_server.update_server_data(progress_data.get_progress_data_info_point("Starting"))
-    pygame_display.show_text('Starting')
-    wait_progress_update()
-    api_server.update_server_data(progress_data.get_empty_data())
-    pygame_display.reset()
-
-    # trial data
-    update_count = 0
-    show_image_time_end = 0
-    show_target_start = 0
-    reset_display = False
-    reset_text = True
-
-    pygame_display.set_video()
-
-    while flag_is_running and update_count <= trial_count:
-        current_time = time.time()
-
-        if flag_start_trial:
-            flag_start_trial = False
-
-            if update_count < trial_count:
-                print(f'\nTrial: {update_count}')
-                log_events('TRIAL_START', current_time)
-                show_image_time_end = current_time + TRIAL_CROSS_DISPLAY_DURATION_SECONDS + TRIAL_IMAGE_DISPLAY_DURATION_SECONDS
-                show_target_start = current_time + TRIAL_CROSS_DISPLAY_DURATION_SECONDS + TRIAL_TARGET_START_SECONDS_AFTER_IMAGE
-            else:
-                print("End of trials")
-                break
-
-        if current_time < show_image_time_end:
-            if current_time < show_image_time_end - TRIAL_IMAGE_DISPLAY_DURATION_SECONDS:
-                # show x
-                if reset_text:
-                    pygame_display.reset()
-                    pygame_display.show_text('X')
-                    reset_text = False
-            else:
-                # update image
-                pygame_display.play_video()
-                reset_display = True
-        else:
-            if reset_display:
-                pygame_display.reset()
-                pygame_display.show_text(f'Mark: {update_count:02d}')
-                reset_display = False
-                reset_text = True
-                log_events('TRIAL_END', current_time)
-
-        if show_target_start != 0 and current_time > show_target_start:
-            new_data = trial_data_list[update_count]
-            progress_data.add_display_duration_millis(new_data, TARGET_DISPLAY_DURATION_MILLIS)
-            api_server.update_server_data(new_data)
-            print(f'Update target: {get_display_value(new_data)}')
-
-            # clear it later
-            api_server.update_server_data(progress_data.get_empty_data())
-            update_count += 1
-
-            show_target_start = 0
-
-        utilities.sleep_milliseconds(5)
-        log_server_requests()
-
-    pygame_display.reset_video()
-
-    pygame_display.reset()
-    pygame_display.show_text('Fill questionnaire')
-    # send stop data
-    print('\nStopping progress')
-    stop_progress_data = progress_data.get_stop_progress_data()
-    progress_data.add_eye_tracking_stop(stop_progress_data, participant, session)
-    api_server.update_server_data(stop_progress_data)
-    wait_progress_update()
-
-    api_server.update_server_data(progress_data.get_empty_data())
-
-    log_events('STOP', time.time())
-    save_log_file(participant, session)
-
-    utilities.beep(5)
-
-
 def is_valid_session(session):
     if session is None or session == "":
         return False
@@ -369,23 +309,8 @@ def is_valid_session(session):
     return -8 <= utilities.get_int(session) <= 6
 
 
-def start_progress_bar_with_exception(participant, session):
-    try:
-        start_progress_bar(participant, session)
-    except Exception:
-        print("Unhandled exception")
-        traceback.print_exc(file=sys.stdout)
-
-
 def start_progress_bar_threaded(participant, session):
-    threading.Thread(target=start_progress_bar_with_exception,
-                     args=(participant, session)).start()
-
-
-def cancel_progress_bar():
-    global flag_is_running
-    print('Cancel progress')
-    flag_is_running = False
+    threading.Thread(target=start_progress_bar, args=(participant, session)).start()
 
 
 server_thread = None
@@ -399,28 +324,18 @@ def start_server_threaded():
 
 def stop_server_threaded():
     global server_thread
-    server_thread.join(timeout=4)
-
-
-keyboard_listener = None
-
-
-def start_keyboard_listening():
-    global keyboard_listener
-    keyboard_listener = keyboard.Listener(on_press=on_press)
-    keyboard_listener.start()
-
-
-def stop_keyboard_listening():
-    global keyboard_listener
-    keyboard_listener.stop()
-    # pass
+    server_thread.join(timeout=6)
 
 
 # code
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
 
 _participant = input("Participant (e.g., p0)?")
-_session = input("Session (e.g., 1-3)?")
+
+_session = input("Session (e.g., 1-6)?")
 
 if is_valid_session(_session):
-    start_progress_bar(_participant, _session)
+    start_progress_bar_threaded(_participant, _session)
+
+api_server.start_server()

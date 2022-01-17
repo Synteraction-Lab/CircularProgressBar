@@ -1,13 +1,13 @@
 # coding=utf-8
 
-# command format: python3 transform_progress_csv.py -p <PARTICIPANT_ID> -s <SESSION_ID>
+# command format: python3 trasform_progress_csv.py -p <PARTICIPANT_ID> -s <SESSION_ID>
 
 import numpy as np
 import optparse
 import pandas as pd
 import utilities
 
-TESTING_SESSION_IDS = [1, 2, 3]
+TESTING_SESSION_IDS = [1, 2, 3, 4, 5, 6]
 
 PROGRESS_TOLERANCE_VALUE = 0.05
 PROGRESS_MAX_DIFFERENCE = 1
@@ -159,8 +159,8 @@ def process_participant_session(participant, session):
     ori_extra = data_frame_click_response[COLUMN_EXTRA]
 
     # identify the targets and noises
-    targets = get_targets_noises(ori_event_type, ori_extra, EVENT_TYPE_TARGET)
-    noises = get_targets_noises(ori_event_type, ori_extra, EVENT_TYPE_NOISE)
+    targets = get_targets_noises(ori_event_type, ori_extra, EVENT_TYPE_TARGET) / 100
+    noises = get_targets_noises(ori_event_type, ori_extra, EVENT_TYPE_NOISE) / 100
 
     print(f'targets: {targets}, noises: {noises}')
 

@@ -26,8 +26,9 @@ def stop_server_threaded():
 
 start_server_threaded()
 start_progress_data = progress_data.get_start_progress_data("x")
-start_progress_data['textFill'] = 0.50
+start_progress_data['textFill'] = 0.25
 start_progress_data['linearFill'] = 0.25
+start_progress_data['circularFill'] = 0.25
 progress_data.add_eye_tracking_stop(start_progress_data, 'p0', '0')
 api_server.update_server_data(start_progress_data)
 

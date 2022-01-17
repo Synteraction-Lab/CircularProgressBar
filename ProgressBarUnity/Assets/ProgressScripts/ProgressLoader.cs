@@ -22,6 +22,12 @@ public class ProgressLoader : MonoBehaviour
     private float circularElementSize = 0.32f;
     private bool shouldUpdateSize = false;
 
+    private float centerX = 0f;
+    private float centerY = 0f;
+    private float prevCenterX = 0f;
+    private float prevCenterY = 0f;
+    private bool shouldUpdateCenter = false;
+
     public GameObject circularFillUI;
     public GameObject circularUnfillUI;
     public GameObject linearFillUI;
@@ -31,9 +37,10 @@ public class ProgressLoader : MonoBehaviour
 
     void Start()
     {
+        Debug.Log("Start ProgressLoader");
         // see https://docs.microsoft.com/en-us/dotnet/api/microsoft.mixedreality.toolkit.input.pointerutils, 
         // https://docs.microsoft.com/en-us/windows/mixed-reality/mrtk-unity/features/input/eye-tracking/eye-tracking-eyes-and-hands
-        PointerUtils.SetGazePointerBehavior(PointerBehavior.AlwaysOn);
+        PointerUtils.SetGazePointerBehavior(PointerBehavior.AlwaysOff);
     }
 
     public void UpdateValues(float cFill, float cUnfill, float lFill, float lUnfill, float tFill, string details)
@@ -79,10 +86,23 @@ public class ProgressLoader : MonoBehaviour
         shouldUpdateSize = true;
     }
 
+    public void UpdateCenter(float x, float y)
+    {
+        centerX = x;
+        centerY = y;
+        shouldUpdateCenter = true;
+    }
+
     private void changeDepth(GameObject gameObject, float depth)
     {
         Vector3 currentPosition = gameObject.transform.position;
         gameObject.transform.position = new Vector3(currentPosition.x, currentPosition.y, depth);
+    }
+
+    private void shiftCenterPosition(GameObject gameObject, float deltaX, float deltaY)
+    {
+        Vector3 currentPosition = gameObject.transform.position;
+        gameObject.transform.position = new Vector3(currentPosition.x + deltaX, currentPosition.y + deltaY, currentPosition.z);
     }
 
     private void changeSize(GameObject gameObject, float size)
@@ -104,6 +124,24 @@ public class ProgressLoader : MonoBehaviour
             changeDepth(progressTextUI, elementDepth);
 
             shouldUpdateDepth = false;
+            shouldUpdateValues = true;
+        }
+
+        if (shouldUpdateCenter)
+        {
+            float deltaX = centerX - prevCenterX;
+            float deltaY = centerY - prevCenterY;
+            prevCenterX = centerX;
+            prevCenterY = centerY;
+
+            shiftCenterPosition(circularFillUI, deltaX, deltaY);
+            shiftCenterPosition(circularUnfillUI, deltaX, deltaY);
+            shiftCenterPosition(linearFillUI, deltaX, deltaY);
+            shiftCenterPosition(linearUnfillUI, deltaX, deltaY);
+            shiftCenterPosition(textFillUI, deltaX, deltaY);
+            shiftCenterPosition(progressTextUI, deltaX, deltaY);
+
+            shouldUpdateCenter = false;
             shouldUpdateValues = true;
         }
 

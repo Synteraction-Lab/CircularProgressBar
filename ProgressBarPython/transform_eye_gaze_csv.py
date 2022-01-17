@@ -1,6 +1,6 @@
 # coding=utf-8
 
-# command format: python3 transform_eye_gaze_csv.py -p <PARTICIPANT_ID> -s <SESSION_ID>
+# command format: python3 transform_eye_gaze_csv.py -p <PARTICIPANT_ID> -s <SESSION_ID> -v <0/1>
 
 import numpy as np
 import math
@@ -9,10 +9,7 @@ import pandas as pd
 import utilities
 import matplot_plot
 
-EYE_TRACKING_TARGET_PRE_CHECK_MILLIS = 1000
-EYE_TRACKING_TARGET_POST_CHECK_MILLIS = 1500
-
-TESTING_SESSION_IDS = [1, 2, 3]
+TESTING_SESSION_IDS = [1, 2, 3, 4, 5, 6]
 
 # input: data directory
 DATA_DIRECTORY_FORMAT = 'data/{}'  # {participant}
@@ -30,7 +27,6 @@ COLUMN_PROGRESS_REQUEST_TIME = 'RequestTime'
 COLUMN_EXTRA = 'Extra'
 
 EVENT_TYPE_TARGETS = 'TARGETS'
-EVENT_TYPE_START = 'START'  # start the app
 EVENT_TYPE_CALIBRATION = 'CALIBRATION_'  # start or end
 EVENT_TYPE_CALIBRATION_START = 'CALIBRATION_START'
 EVENT_TYPE_CALIBRATION_END = 'CALIBRATION_END'
@@ -42,7 +38,6 @@ EVENT_TYPE_DATA_REQUEST = 'SERVER_REQUEST'
 EVENT_DATA_EYE_TRACKING = 'EYE_TRACKING_'
 EVENT_DATA_EYE_TRACKING_START = 'EYE_TRACKING_START'
 EVENT_DATA_EYE_TRACKING_STOP = 'EYE_TRACKING_STOP'
-EVENT_DATA_DISPLAY_DURATION = 'DISPLAY_DURATION'
 
 # input: related to eye tracking data
 FILE_NAME_EYE_TRACKING_FORMAT = '{}_{}_eyes'
@@ -86,7 +81,7 @@ def get_value(df_column, row):
     return df_column[row]
 
 
-def process_participant_session(participant, session, visualize=None, radius=None):
+def process_participant_session(participant, session, visualize=False):
     print(f'Participant: {participant}, session: {session}')
     data_directory = DATA_DIRECTORY_FORMAT.format(participant)
 
@@ -115,19 +110,18 @@ def process_participant_session(participant, session, visualize=None, radius=Non
     targets = get_targets_noises(ori_event_type, ori_event_extra, EVENT_TYPE_TARGETS)
     print(f'targets: {targets}')
 
-    # identify the type
-    progress_type = get_value(ori_event_extra,
-                              get_event_start_with_rows(ori_event_type, EVENT_TYPE_START)[0])
-
     # stimuli file rows: eye_tracking, calibrations, trials, display_duration
     event_eye_tracking_start_rows = get_event_start_with_rows(ori_event_extra,
                                                               EVENT_DATA_EYE_TRACKING_START)
     event_calibration_rows = get_event_start_with_rows(ori_event_type, EVENT_TYPE_CALIBRATION)
     event_trial_rows = get_event_start_with_rows(ori_event_type, EVENT_TYPE_TRIAL)
-    event_display_duration_rows = get_event_start_with_rows(ori_event_extra,
-                                                            EVENT_DATA_DISPLAY_DURATION)
 
-    trial_count = len(event_display_duration_rows)
+    if len(event_trial_rows) % 2 != 0:
+        print(f'Error in trial row count: {len(event_trial_rows)}')
+        return
+
+    trial_count = len(event_trial_rows) // 2
+
     print(
         f'Calibration rows: {len(event_calibration_rows)}, Trial rows: {len(event_trial_rows)}, Trial count: {trial_count}')
 
@@ -151,17 +145,12 @@ def process_participant_session(participant, session, visualize=None, radius=Non
     eye_tracking_trial_rows = []
     for trial in range(trial_count):
         eye_tracking_trial_rows.append([])
-        trial_target_start_millis = (get_value(ori_progress_request_time,
-                                               event_display_duration_rows[
-                                                   trial]) - stimuli_eye_tracking_start_time) * 1000
-        stimuli_end_millis = (get_value(ori_event_time, event_trial_rows[
+        trial_start_millis = (get_value(ori_progress_request_time, event_trial_rows[
+            2 * trial]) - stimuli_eye_tracking_start_time) * 1000
+        trial_end_millis = (get_value(ori_event_time, event_trial_rows[
             2 * trial + 1]) - stimuli_eye_tracking_start_time) * 1000
-        eye_tracking_trial_rows[trial] = get_rows_between(ori_eye_tracking_time
-                                                          ,
-                                                          trial_target_start_millis - EYE_TRACKING_TARGET_PRE_CHECK_MILLIS
-                                                          , min(
-                trial_target_start_millis + EYE_TRACKING_TARGET_POST_CHECK_MILLIS,
-                stimuli_end_millis))
+        eye_tracking_trial_rows[trial] = get_rows_between(ori_eye_tracking_time, trial_start_millis,
+                                                          trial_end_millis)
         new_column_trial_info += [trial] * len(eye_tracking_trial_rows[trial])
 
     # concat all selected rows
@@ -174,6 +163,7 @@ def process_participant_session(participant, session, visualize=None, radius=Non
     data_frame_eye_tracking_trials_filtered = data_frame_eye_tracking.loc[
         filtered_eye_tracking_rows]
     data_frame_eye_tracking_trials_filtered['TrialInfo'] = new_column_trial_info
+    # print(data_frame_eye_tracking_trials_filtered)
 
     converted_file_name = FILE_NAME_CONVERTED_DATA_FORMAT.format(participant, participant, session)
     pd.DataFrame(data=data_frame_eye_tracking_trials_filtered).to_csv(converted_file_name)
@@ -182,14 +172,12 @@ def process_participant_session(participant, session, visualize=None, radius=Non
     # summary data related to [calibration, trial 0, trial 1, ...]
     calibration_trial_rows = get_calibration_trial_rows(eye_tracking_calibration_rows,
                                                         eye_tracking_trial_rows)
-
-    trial_info = ['C' + get_progress_type_initials(progress_type)] + [i for i in range(
-        trial_count)]  # Add 'C_<type>' for calibration and 0-n for trials
+    trial_info = ['C'] + [i for i in
+                          range(trial_count)]  # Add 'C' for calibration and 0-n for trials
     eye_gaze_x, eye_gaze_y, eye_gaze_z, eye_gaze_t = get_eye_gaze_xyzt(data_frame_eye_tracking,
                                                                        calibration_trial_rows)
     eye_gaze_dir_x_mean, eye_gaze_dir_x_std, eye_gaze_dir_y_mean, eye_gaze_dir_y_std, eye_gaze_dir_z_mean, eye_gaze_dir_z_std, eye_gaze_duration = get_eye_gaze_mean_std_xyz_t(
         eye_gaze_x, eye_gaze_y, eye_gaze_z, eye_gaze_t)
-    eye_gaze_targets = np.concatenate(([0], targets))  # add 0 as calibration target
 
     calibration_center_point, calibration_radius = get_calibration_canter_and_radius(participant,
                                                                                      session,
@@ -197,10 +185,6 @@ def process_participant_session(participant, session, visualize=None, radius=Non
                                                                                      eye_gaze_y[0],
                                                                                      eye_gaze_z[0])
     print('Center:', calibration_center_point, ', Radius: :', calibration_radius)
-    if radius is not None and utilities.get_float(radius) > 0:
-        calibration_radius = utilities.get_float(radius)
-        print('Updated Radius: :', calibration_radius)
-
     eye_gaze_within_radius_percentages = get_eye_gaze_within_radius(eye_gaze_x, eye_gaze_y,
                                                                     eye_gaze_z,
                                                                     calibration_center_point,
@@ -214,9 +198,9 @@ def process_participant_session(participant, session, visualize=None, radius=Non
         'EyeDir.z.mean': eye_gaze_dir_z_mean,
         'EyeDir.z.std': eye_gaze_dir_z_std,
         'EyeDir.duration': eye_gaze_duration,
-        'Target': eye_gaze_targets,
         'Gaze.count.percentage': eye_gaze_within_radius_percentages,
     }
+    # print(csv_summary_data)
     converted_summary_file_name = FILE_NAME_CONVERTED_SUMMARY_DATA_FORMAT.format(participant,
                                                                                  participant,
                                                                                  session)
@@ -225,7 +209,7 @@ def process_participant_session(participant, session, visualize=None, radius=Non
 
     print_stats(csv_summary_data)
 
-    if visualize == '1':
+    if visualize:
         visualize_eye_gaze(eye_gaze_x, eye_gaze_y, eye_gaze_z)
 
 
@@ -333,17 +317,6 @@ def print_stats(eye_tacking_summary_data):
     print('Gaze.count.percentage: ', eye_tacking_summary_data['Gaze.count.percentage'])
 
 
-def get_progress_type_initials(progress_type):
-    if pd.isna(progress_type) or progress_type is None:
-        return ''
-    sub_parts = progress_type.split('_')
-    initials = ""
-    for part in sub_parts:
-        initials += part[0].upper()
-
-    return '_' + initials
-
-
 def visualize_eye_gaze(eye_gaze_x, eye_gaze_y, eye_gaze_z):
     fig_count = len(eye_gaze_x)
 
@@ -370,16 +343,15 @@ def get_array_without_none(array):
     return [item for item in array if item is not None]
 
 
-def process_participant(participant, visualize, radius):
+def process_participant(participant):
     for session in TESTING_SESSION_IDS:
-        process_participant_session(participant, session, visualize, radius)
+        process_participant_session(participant, session)
 
 
 parser = optparse.OptionParser()
 parser.add_option("-p", "--participant", dest="participant")
 parser.add_option("-s", "--session", dest="session")
 parser.add_option("-v", "--visualize", dest="visualize")
-parser.add_option("-r", "--radius", dest="radius")
 
 options, args = parser.parse_args()
 
@@ -388,9 +360,8 @@ options, args = parser.parse_args()
 _participant = options.participant
 _session = options.session
 _visualize = options.visualize
-_radius = options.radius
 
 if _session is None:
-    process_participant(_participant, _visualize, _radius)
+    process_participant(_participant)
 else:
-    process_participant_session(_participant, _session, _visualize, _radius)
+    process_participant_session(_participant, _session, _visualize == '1')

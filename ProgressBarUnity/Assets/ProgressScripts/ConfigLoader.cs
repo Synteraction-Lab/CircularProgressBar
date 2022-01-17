@@ -23,7 +23,7 @@ public class ConfigLoader : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        
+        Debug.Log("Start ConfigLoader");
     }
 
     // Update is called once per frame
@@ -93,6 +93,8 @@ public class ConfigLoader : MonoBehaviour
             System.Diagnostics.Debug.WriteLine("Read config file: " + path);
             string jsonString = File.ReadAllText(path);
             config = JsonUtility.FromJson<ConfigData>(jsonString);
+
+            Debug.Log("Config data: " + jsonString);
         }
         catch
         {
