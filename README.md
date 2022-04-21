@@ -2,7 +2,7 @@
 Show progress notifications on OHMDs during social interactions (a clone of private repos [ProgressBarPython](https://github.com/NUS-HCILab/ProgressBarPython) and [ProgressBarUnity](https://github.com/NUS-HCILab/ProgressBarUnity))
 
 ## Publications
-- [Paracentral and near-peripheral visualizations: Towards attention-maintaining secondary information presentation on OHMDs during in-person social interactions](https://doi.org/10.1145/3491102.3502127), CHI'22
+- [Paracentral and near-peripheral visualizations: Towards attention-maintaining secondary information presentation on OHMDs during in-person social interactions](https://doi.org/10.1145/3491102.3502127), CHI'22 [**[PDF]**](CHI2022_progressbar.pdf)
 ```
 <Bibtext>
 
