@@ -7,22 +7,21 @@ Show progress notifications on OHMDs during social interactions (a clone of priv
 - [Paracentral and near-peripheral visualizations: Towards attention-maintaining secondary information presentation on OHMDs during in-person social interactions](https://doi.org/10.1145/3491102.3502127), CHI'22 [**[PDF]**](CHI2022_progressbar.pdf)
 ```
 @inproceedings{janaka_paracentral_2022,
-	author = {Janaka, Nuwan and Haigh, Chloe and Kim, Hyeongcheol and Zhang, Shan and Zhao, Shengdong},
-	title = {Paracentral and Near-Peripheral Visualizations: Towards Attention-Maintaining Secondary Information Presentation on OHMDs during in-Person Social Interactions},
-	year = {2022},
-	isbn = {9781450391573},
-	publisher = {Association for Computing Machinery},
 	address = {New York, NY, USA},
-	url = {https://doi.org/10.1145/3491102.3502127},
+	series = {{CHI} '22},
+	title = {Paracentral and near-peripheral visualizations: {Towards} attention-maintaining secondary information presentation on {OHMDs} during in-person social interactions},
+	isbn = {978-1-4503-9157-3},
+	shorttitle = {Paracentral and near-peripheral visualizations},
+	url = {https://dl.acm.org/doi/10.1145/3491102.3502127},
 	doi = {10.1145/3491102.3502127},
-	booktitle = {CHI Conference on Human Factors in Computing Systems},
-	articleno = {551},
-	numpages = {14},
-	keywords = {smart glasses, paracentral, reminder notification, near-peripheral, interruption, conversation, circular progress, HMD, social interaction},
-	location = {New Orleans, LA, USA},
-	series = {CHI '22}
+	booktitle = {Proceedings of the 2022 {CHI} {Conference} on {Human} {Factors} in {Computing} {Systems}},
+	publisher = {Association for Computing Machinery},
+	author = {Janaka, Nuwan and Haigh, Chloe and Kim, Hyeongcheol and Zhang, Shan and Zhao, Shengdong},
+	month = apr,
+	year = {2022},
+	keywords = {HMD, circular progress, conversation, interruption, near-peripheral, paracentral, reminder notification, smart glasses, social interaction},
+	pages = {1--14},
 }
-
 ```
 
 ## Contents
